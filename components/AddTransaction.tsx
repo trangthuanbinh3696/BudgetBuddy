@@ -88,7 +88,7 @@ function AddTransaction({
               }
             />
             {categories.map((e) => (
-              <CategoryButton
+              <AddTransaction.CategoryButton
                 key={e.name}
                 id={e.id}
                 title={e.name}
@@ -110,13 +110,15 @@ function AddTransaction({
           </View>
         </View>
       ) : (
-        <AddButton setIsAddingTransaction={setIsAddingTransaction} />
+        <AddTransaction.AddButton
+          setIsAddingTransaction={setIsAddingTransaction}
+        />
       )}
     </View>
   );
 }
 
-function AddButton({
+AddTransaction.AddButton = function AddButton({
   setIsAddingTransaction,
 }: {
   setIsAddingTransaction: React.Dispatch<React.SetStateAction<boolean>>;
@@ -140,9 +142,9 @@ function AddButton({
       </Text>
     </TouchableOpacity>
   );
-}
+};
 
-function CategoryButton({
+AddTransaction.CategoryButton = function CategoryButton({
   id,
   title,
   isSelected,
@@ -183,5 +185,5 @@ function CategoryButton({
       </Text>
     </TouchableOpacity>
   );
-}
+};
 export default AddTransaction;

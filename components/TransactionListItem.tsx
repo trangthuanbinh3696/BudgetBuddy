@@ -21,12 +21,12 @@ function TransactionListItem({ transaction, categoryInfo }: Props) {
     <Card>
       <View style={styles.row}>
         <View style={{ width: "40%", gap: 3 }}>
-          <Amount
+          <TransactionListItem.Amount
             amount={transaction.amount}
             color={color}
             iconName={iconName}
           />
-          <CategoryItem
+          <TransactionListItem.CategoryItem
             categoryColor={categoryColor}
             categoryInfo={categoryInfo}
             emoji={emoji}
@@ -61,7 +61,7 @@ function TransactionInfo({
     </View>
   );
 }
-function CategoryItem({
+TransactionListItem.CategoryItem = function CategoryItem({
   categoryColor,
   categoryInfo,
   emoji,
@@ -82,9 +82,9 @@ function CategoryItem({
       </Text>
     </View>
   );
-}
+};
 
-function Amount({
+TransactionListItem.Amount = function Amount({
   iconName,
   color,
   amount,
@@ -106,7 +106,8 @@ function Amount({
       </AutoSizeText>
     </View>
   );
-}
+};
+
 const styles = StyleSheet.create({
   amount: {
     fontSize: 32,
