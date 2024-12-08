@@ -5,25 +5,42 @@ import React, { useEffect, useState } from "react";
 import { useSQLiteContext } from "expo-sqlite";
 import Card from "./ui/Card";
 import SegmentedControl from "@react-native-segmented-control/segmented-control";
+import {
+  Controller,
+  FieldValues,
+  SubmitHandler,
+  useForm,
+} from "react-hook-form";
 
+interface FormValues extends FieldValues {
+  amount: string;
+  description: string;
+  category: Category;
+}
 function AddTransaction({
   insertTransaction,
 }: {
   insertTransaction: (transaction: Transaction) => Promise<void>;
 }) {
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+    reset,
+  } = useForm<FormValues>({
+    defaultValues: {
+      amount: "",
+      description: "",
+      category: undefined,
+    },
+  });
   const [isAddingTransaction, setIsAddingTransaction] = useState(false);
   const [currentTab, setCurrentTab] = useState(0);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [typeSelected, setTypeSelected] = useState("");
-  const [amount, setAmount] = useState("");
-  const [description, setDescription] = useState("");
-  const [category, setCategory] = useState("Expense");
-  const [categoryId, setCategoryId] = useState(1);
   const db = useSQLiteContext();
 
   useEffect(() => {
     async function getExpenseType(currentTab: number) {
-      setCategory(currentTab === 0 ? "Expense" : "Income");
       const type = currentTab === 0 ? "Expense" : "Income";
       const result = await db.getAllAsync<Category>(
         `SELECT * FROM Categories WHERE type = ?;`,
@@ -33,27 +50,26 @@ function AddTransaction({
     }
     getExpenseType(currentTab);
   }, [currentTab]);
+
   //
-  async function handleSave() {
+  async function handleSave(data: {
+    amount: string;
+    description: string;
+    category: Category;
+  }) {
     try {
       const payload = {
-        amount: Number(amount),
-        description,
-        category_id: categoryId,
+        amount: Number(data.amount),
+        description: data.description,
+        category_id: data.category.id,
         date: new Date().getTime() / 1000,
-        type: category as "Expense" | "Income",
+        type: currentTab === 0 ? "Expense" : "Income",
       };
-
-      console.log("29148 > handleSave > payload:::::::", payload);
       // @ts-ignore
       await insertTransaction(payload);
-
-      setAmount("");
-      setDescription("");
-      setCategory("Expense");
-      setCategoryId(1);
       setCurrentTab(0);
       setIsAddingTransaction(false);
+      reset();
     } catch (error) {
       console.log("29148 > handleSave > error:::::::", error);
     }
@@ -64,20 +80,50 @@ function AddTransaction({
       {isAddingTransaction ? (
         <View>
           <Card>
-            <TextInput
-              placeholder="$Amount"
-              style={{ fontSize: 32, marginBottom: 15, fontWeight: "bold" }}
-              keyboardType="numeric"
-              onChangeText={(text) => {
-                const numericValue = text.replace(/[^0-9.]/g, "");
-                setAmount(numericValue);
+            <Controller
+              control={control}
+              name={"amount"}
+              rules={{
+                required: "*This is required",
+                pattern: {
+                  value: /^[0-9]*$/,
+                  message: "Amount must be a numeric value",
+                },
               }}
+              render={({ field }) => (
+                <TextInput
+                  {...field}
+                  onChangeText={field.onChange}
+                  placeholder="$Amount"
+                  style={{ fontSize: 32, marginBottom: 15, fontWeight: "bold" }}
+                  keyboardType="numeric"
+                />
+              )}
             />
-            <TextInput
-              placeholder="Description"
-              style={{ marginBottom: 15 }}
-              onChangeText={setDescription}
+            {errors.amount && (
+              <Text style={{ color: "red" }}>{errors?.amount?.message}</Text>
+            )}
+
+            <Controller
+              control={control}
+              name="description"
+              rules={{
+                required: "*This is required",
+              }}
+              render={({ field }) => (
+                <TextInput
+                  {...field}
+                  onChangeText={field.onChange}
+                  placeholder="Description"
+                  style={{ marginBottom: 15 }}
+                />
+              )}
             />
+            {errors.description && (
+              <Text style={{ color: "red" }}>
+                {errors?.description?.message}
+              </Text>
+            )}
             <Text style={{ marginBottom: 6 }}>Select a entry type</Text>
             <SegmentedControl
               values={["Expense", "Income"]}
@@ -87,16 +133,28 @@ function AddTransaction({
                 setCurrentTab(selectedSegmentIndex)
               }
             />
-            {categories.map((e) => (
-              <AddTransaction.CategoryButton
-                key={e.name}
-                id={e.id}
-                title={e.name}
-                isSelected={typeSelected == e.name}
-                setTypeSelected={setTypeSelected}
-                setCategoryId={setCategoryId}
-              />
-            ))}
+            <Controller
+              control={control}
+              name={"category"}
+              rules={{
+                required: "*This is required.",
+              }}
+              render={({ field: { onChange, value } }) => (
+                <View>
+                  {categories.map((e) => (
+                    <AddTransaction.CategoryButton
+                      category={e}
+                      key={e.name}
+                      isSelected={value?.name == e.name}
+                      setCategory={onChange}
+                    />
+                  ))}
+                </View>
+              )}
+            />
+            {errors?.category && (
+              <Text style={{ color: "red" }}>{errors?.category?.message}</Text>
+            )}
           </Card>
           <View
             style={{ flexDirection: "row", justifyContent: "space-around" }}
@@ -106,7 +164,7 @@ function AddTransaction({
               color="red"
               onPress={() => setIsAddingTransaction(false)}
             />
-            <Button title="Save" onPress={handleSave} />
+            <Button title="Save" onPress={handleSubmit(handleSave)} />
           </View>
         </View>
       ) : (
@@ -145,23 +203,19 @@ AddTransaction.AddButton = function AddButton({
 };
 
 AddTransaction.CategoryButton = function CategoryButton({
-  id,
-  title,
+  category,
   isSelected,
-  setTypeSelected,
-  setCategoryId,
+  setCategory,
 }: {
-  id: number;
-  title: string;
+  category: Category;
   isSelected: boolean;
-  setTypeSelected: React.Dispatch<React.SetStateAction<string>>;
-  setCategoryId: React.Dispatch<React.SetStateAction<number>>;
+  setCategory: (value: Category) => void;
 }) {
+  const { id, name } = category;
   return (
     <TouchableOpacity
       onPress={() => {
-        setTypeSelected(title);
-        setCategoryId(id);
+        setCategory(category);
       }}
       activeOpacity={0.6}
       style={{
@@ -181,7 +235,7 @@ AddTransaction.CategoryButton = function CategoryButton({
           marginLeft: 5,
         }}
       >
-        {title}
+        {name}
       </Text>
     </TouchableOpacity>
   );
